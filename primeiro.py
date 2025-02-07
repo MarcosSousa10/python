@@ -1,4 +1,5 @@
-from flask import Flask, request, jsonify
+from flask import Flask, render_template, request,jsonify
+
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 import mysql.connector
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -11,34 +12,8 @@ import string
 app = Flask(__name__)
 
 # Configuração do JWT
-app.config["JWT_SECRET_KEY"] = "sua_chave_secreta"  # Substitua por uma chave secreta segura
+app.config["JWT_SECRET_KEY"] = "teste"  
 jwt = JWTManager(app)
-
-def send_email(to_email, subject, body):
-    # Configurações do servidor SMTP
-    smtp_server = "smtp.gmail.com"
-    smtp_port = 587
-    smtp_user = "marcospegodesousa10@gmail.com"  # Substitua pelo seu e-mail
-    smtp_password = "ydzprxplbjmeyedl"  # Substitua pela sua senha de aplicativo (usei Gmail como exemplo)
-
-    msg = MIMEMultipart()
-    msg['From'] = smtp_user
-    msg['To'] = to_email
-    msg['Subject'] = subject
-
-    msg.attach(MIMEText(body, 'plain'))
-
-    try:
-        # Conectar ao servidor SMTP
-        server = smtplib.SMTP(smtp_server, smtp_port)
-        server.starttls()  # Iniciar criptografia TLS
-        server.login(smtp_user, smtp_password)
-        server.sendmail(smtp_user, to_email, msg.as_string())  # Enviar o e-mail
-        server.quit()  # Fechar a conexão com o servidor
-        print(f'E-mail enviado para {to_email}')
-    except Exception as e:
-        print(f"Erro ao enviar o e-mail: {str(e)}")
-
 def connect_to_db():
     return mysql.connector.connect(
         host="localhost", 
@@ -64,6 +39,34 @@ def create_table():
     )
     connection.commit()
     connection.close()
+
+
+def send_email(to_email, subject, body):
+    # Configurações do servidor SMTP
+    smtp_server = "smtp.gmail.com"
+    smtp_port = 587
+    smtp_user = "marcospegodesousa10@gmail.com"  
+    smtp_password = "ydzprxplbjmeyedl" 
+
+    msg = MIMEMultipart()
+    msg['From'] = smtp_user
+    msg['To'] = to_email
+    msg['Subject'] = subject
+
+    msg.attach(MIMEText(body, 'plain'))
+
+    try:
+        # Conectar ao servidor SMTP
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()  # Iniciar criptografia TLS
+        server.login(smtp_user, smtp_password)
+        server.sendmail(smtp_user, to_email, msg.as_string())  # Enviar o e-mail
+        server.quit()  # Fechar a conexão com o servidor
+        print(f'E-mail enviado para {to_email}')
+    except Exception as e:
+        print(f"Erro ao enviar o e-mail: {str(e)}")
+
+
 
 # Rota para registrar usuário
 @app.route('/register/', methods=['POST'])
@@ -113,14 +116,14 @@ def verify_email(token):
     user = cursor.fetchone()
     
     if not user:
-        return jsonify({"message": "Token de verificação inválido!"}), 400
+        return render_template('verification_result.html', message="Token de verificação inválido!", success=False)
 
     # Atualizar o status do e-mail para verificado
     cursor.execute("UPDATE usuarios SET email_verificado = TRUE WHERE token_verificacao = %s", (token,))
     connection.commit()
     connection.close()
 
-    return jsonify({"message": "E-mail verificado com sucesso! Agora você pode fazer login."}), 200
+    return render_template('verification_result.html', message="E-mail verificado com sucesso! Agora você pode fazer login.", success=True)
 
 # Rota para login e geração de token
 @app.route('/login/', methods=['POST'])
@@ -153,11 +156,6 @@ def login_user():
     token = create_access_token(identity=str(user[0]))  # Passa o ID como string
 
     return jsonify({"token": token}), 200
-
-# Outras rotas...
-if __name__ == "__main__":
-    create_table()
-    app.run(debug=True)
 
 # Rota protegida (exemplo)
 @app.route('/protected/', methods=['GET'])
@@ -219,8 +217,7 @@ def delete_user(user_id):
     connection.commit()
     connection.close()
 
-    return jsonify({"message": "Usuário excluído com sucesso!"}), 200
-
+    return jsonify({"message": "Usuário excluído com sucesso!"}), 200# Outras rotas...
 if __name__ == "__main__":
     create_table()
     app.run(debug=True)
